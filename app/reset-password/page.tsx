@@ -1,6 +1,6 @@
 'use client'
 
-import { useState, useEffect, Suspense } from 'react'
+import { useState, useEffect, Suspense, useRef } from 'react'
 import { useSearchParams, useRouter } from 'next/navigation'
 import Link from 'next/link'
 import { ChevronLeft, Smile, Lock, ArrowRight, AlertCircle, CheckCircle, Loader2 } from 'lucide-react'
@@ -18,13 +18,51 @@ function ResetPasswordFormContent() {
   const [isLoading, setIsLoading] = useState(false)
   const [formError, setFormError] = useState<string | null>(null)
   const [success, setSuccess] = useState(false)
+  const hasProcessedAuth = useRef(false)
 
   // 1. Detectar token o código al cargar la página
   useEffect(() => {
+    if (hasProcessedAuth.current) return
+    hasProcessedAuth.current = true
+
     const handleAuth = async () => {
-      const code = searchParams.get('code')
+      // Verificar primero si hay errores en el hash (#error=...)
+      if (typeof window !== 'undefined' && window.location.hash) {
+        const hash = window.location.hash.substring(1)
+        const params = new URLSearchParams(hash)
+        const hashError = params.get('error')
+        const errorCode = params.get('error_code')
+        const errorDescription = params.get('error_description')
+
+        if (hashError) {
+          const friendlyMessages: Record<string, string> = {
+            'otp_expired': 'El enlace de recuperación ha expirado. Por favor, solicita uno nuevo.',
+            'access_denied': 'El acceso fue denegado. El enlace puede haber sido usado anteriormente o ha expirado.',
+          }
+          const message = friendlyMessages[errorCode || ''] 
+            || errorDescription?.replace(/\+/g, ' ') 
+            || 'El enlace de recuperación es inválido.'
+          
+          setVerificationError(message)
+          setIsVerifying(false)
+          window.history.replaceState(null, '', window.location.pathname)
+          return
+        }
+
+        // Flujo implícito hash (#access_token=...)
+        const accessToken = params.get('access_token')
+        const type = params.get('type')
+
+        if (accessToken && type === 'recovery') {
+          setToken(accessToken)
+          setIsVerifying(false)
+          window.history.replaceState(null, '', window.location.pathname)
+          return
+        }
+      }
 
       // Verificar si hay código PKCE en la URL (?code=...)
+      const code = searchParams.get('code')
       if (code) {
         try {
           const res = await api.exchangeCode(code)
@@ -36,22 +74,6 @@ function ResetPasswordFormContent() {
           setIsVerifying(false)
         }
         return
-      }
-
-      // Fallback para flujo implícito hash (#access_token=...)
-      if (typeof window !== 'undefined' && window.location.hash) {
-        const hash = window.location.hash.substring(1)
-        const params = new URLSearchParams(hash)
-        const accessToken = params.get('access_token')
-        const type = params.get('type')
-
-        if (accessToken && type === 'recovery') {
-          setToken(accessToken)
-          setIsVerifying(false)
-          // Limpiar hash de la URL por seguridad
-          window.history.replaceState(null, '', window.location.pathname)
-          return
-        }
       }
 
       // Si no se encuentra ni código ni hash

@@ -25,6 +25,24 @@ export default function Page() {
   const [error, setError] = useState<string | null>(null)
   const [isLoading, setIsLoading] = useState(false)
 
+  // Detectar si Supabase redirigió aquí con un token de recovery en el hash
+  // y redirigir automáticamente a /reset-password conservando el hash
+  useEffect(() => {
+    if (typeof window !== 'undefined' && window.location.hash) {
+      const hash = window.location.hash.substring(1)
+      const params = new URLSearchParams(hash)
+      const type = params.get('type')
+      const accessToken = params.get('access_token')
+      const error = params.get('error')
+
+      if ((type === 'recovery' && accessToken) || error) {
+        // Redirigir a /reset-password manteniendo el hash con el token
+        window.location.href = `/reset-password${window.location.hash}`
+        return
+      }
+    }
+  }, [])
+
   // Abrir la vista correspondiente si viene como parámetro de consulta (?view=...)
   useEffect(() => {
     if (typeof window !== 'undefined') {
