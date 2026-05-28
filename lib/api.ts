@@ -147,4 +147,18 @@ export async function updatePassword(token: string, password: string) {
   return res.json();
 }
 
+export async function sendInvitation(email: string, name: string) {
+  const res = await fetch(`${API_URL}/auth/send-invitation`, {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({ email, name }),
+  });
+  if (!res.ok) {
+    const error = await res.json();
+    throw new Error(error.message || 'Error al enviar la invitación');
+  }
+  return res.json();
+}
+
+
 

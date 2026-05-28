@@ -10,8 +10,10 @@ import {
   ExternalLink,
   LayoutDashboard,
   Smile,
+  MailOpen,
 } from 'lucide-react'
 import type { AppointmentData } from './AppointmentWizard'
+import * as api from '@/lib/api'
 
 interface SuccessScreenProps {
   appointment: AppointmentData
@@ -30,11 +32,26 @@ function formatDateDisplay(d: string) {
 
 export default function SuccessScreen({ appointment, onGoToDashboard }: SuccessScreenProps) {
   const [visible, setVisible] = useState(false)
+  const [isResending, setIsResending] = useState(false)
+  const [resendStatus, setResendStatus] = useState<string | null>(null)
 
   useEffect(() => {
     const t = setTimeout(() => setVisible(true), 100)
     return () => clearTimeout(t)
   }, [])
+
+  const handleResend = async () => {
+    setIsResending(true)
+    setResendStatus(null)
+    try {
+      await api.sendInvitation(appointment.email, appointment.name)
+      setResendStatus('¡Invitación reenviada con éxito!')
+    } catch (err) {
+      setResendStatus('Hubo un error al reenviar. Intenta de nuevo.')
+    } finally {
+      setIsResending(false)
+    }
+  }
 
   const confirmationCode = `DP-${Math.random().toString(36).substring(2,8).toUpperCase()}`
 
@@ -61,42 +78,31 @@ export default function SuccessScreen({ appointment, onGoToDashboard }: SuccessS
             visible ? 'opacity-100 translate-y-0' : 'opacity-0 translate-y-4',
           ].join(' ')}>
             <div className="relative mb-4">
-              <div className="w-20 h-20 bg-success-muted rounded-full flex items-center justify-center">
-                <CheckCircle className="w-10 h-10 text-accent" strokeWidth={1.5} />
+              <div className="w-20 h-20 bg-primary/10 rounded-full flex items-center justify-center overflow-hidden">
+                <MailOpen className="w-10 h-10 text-primary animate-bounce" strokeWidth={1.5} />
               </div>
-              <div className="absolute inset-0 rounded-full border-4 border-accent/20 animate-ping" />
+              <div className="absolute inset-0 rounded-full border-4 border-primary/20 animate-ping" />
             </div>
-            <h1 className="text-2xl font-bold text-foreground">¡Cita confirmada!</h1>
+            <h1 className="text-2xl font-bold text-foreground">¡Cita confirmada, {appointment.name.split(' ')[0]}!</h1>
             <p className="text-muted-foreground mt-2 leading-relaxed">
-              Tu cita ha sido agendada exitosamente. Recibirás un recordatorio por WhatsApp y correo electrónico.
+              Hemos enviado un enlace de activación a <strong className="text-foreground">{appointment.email}</strong>. Revisa tu bandeja de entrada (y la carpeta de spam) para crear tu contraseña y acceder a tu portal.
             </p>
-            <div className="mt-3 inline-flex items-center gap-2 px-3 py-1.5 bg-muted rounded-full text-xs font-mono text-muted-foreground">
-              Código: <span className="font-bold text-foreground">{confirmationCode}</span>
-            </div>
 
-            {appointment.tempPassword && (
-              <div className="mt-5 w-full bg-teal-light border border-primary/25 rounded-2xl p-4 text-left space-y-2.5 shadow-sm">
-                <p className="text-xs font-bold uppercase tracking-wider text-primary flex items-center gap-1.5">
-                  🔑 Cuenta Creada Exitosamente
-                </p>
-                <p className="text-xs text-muted-foreground leading-relaxed">
-                  Hemos creado una cuenta de paciente para ti. Úsala para gestionar tus citas, recetas y documentos en el portal:
-                </p>
-                <div className="text-xs font-mono bg-card p-3 rounded-xl border border-border space-y-1.5">
-                  <div className="flex justify-between">
-                    <span className="text-muted-foreground">Usuario:</span>
-                    <span className="font-semibold text-foreground select-all">{appointment.email}</span>
-                  </div>
-                  <div className="flex justify-between">
-                    <span className="text-muted-foreground">Contraseña temporal:</span>
-                    <span className="font-bold text-primary select-all">{appointment.tempPassword}</span>
-                  </div>
-                </div>
-                <p className="text-[10px] text-muted-foreground">
-                  * Te recomendamos cambiar esta contraseña al ingresar a tu cuenta.
-                </p>
-              </div>
-            )}
+            <div className="mt-5 w-full bg-slate-surface border border-border rounded-2xl p-4 text-center space-y-3 shadow-sm">
+              <p className="text-sm font-medium text-foreground">
+                ¿No recibiste el correo?
+              </p>
+              <button
+                onClick={handleResend}
+                disabled={isResending}
+                className="text-primary text-sm font-semibold hover:underline disabled:opacity-50"
+              >
+                {isResending ? 'Reenviando...' : 'Reenviar invitación'}
+              </button>
+              {resendStatus && (
+                <p className="text-xs text-success">{resendStatus}</p>
+              )}
+            </div>
           </div>
 
           {/* Booking Summary Card */}

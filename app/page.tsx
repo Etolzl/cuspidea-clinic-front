@@ -139,6 +139,9 @@ export default function Page() {
         motivo_consulta: data.service,
       })
 
+      // 8. Enviar correo de invitación
+      await api.sendInvitation(data.email, data.name)
+
       // Guardar usuario logueado en estado y localStorage
       const loggedUser: LoggedUser = {
         id: perfilId,
@@ -152,10 +155,7 @@ export default function Page() {
         localStorage.setItem('user_session', JSON.stringify(loggedUser))
       }
 
-      setAppointment({
-        ...data,
-        tempPassword,
-      })
+      setAppointment(data)
       handleViewChange('success')
     } catch (err: any) {
       console.error(err)
